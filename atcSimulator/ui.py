@@ -1,5 +1,8 @@
+from operator import imod
 from matplotlib.pyplot import show
 from numpy import size
+from requests import delete
+# import atcSimulator.main_class as main_class
 import main_class
 from tkinter import *
 import threading
@@ -32,11 +35,19 @@ class Ui:
         self.parent3.pack(side=TOP, anchor=NW)
         self.draw_extra_functions(self.parent3)
 
+        self.show_info_window = None
 
-        threading.Thread(target=self.show_list, args=(3,)).start()
-        threading.Thread(target=self.code.run_tick, args=(3,)).start()
+        t1 = threading.Thread(target=self.code.run_tick, args=(1, self.extra_total_aircrafts, self.extra_total_on_runway, self.extra_total_available_runways, self.extra_crashed, self.extra_successfully_landed, self.extra_current_emergency, self.sheet))
+
+        t1.start()
 
         self.root.mainloop()
+
+
+        self.code.run = False
+
+        t1.join()
+
         
     def show_extra_info_on_gui(self, window):
         self.extra_total_aircrafts = Label(window ,text = "Total aircrafts: 12").grid(row = 0,column = 0)
@@ -72,6 +83,71 @@ class Ui:
         except:
             raise Exception("Please check inputs format.")
 
+    def show_search_table(self, sheet, id_entry):
+        try:
+            Id = int(id_entry.get())
+            lst = self.code.aircrafts_data_list
+            sheet.set_sheet_data([])
+            for i in lst:
+                if i[0] == Id:
+                    sheet.set_sheet_data([i])
+                    break
+        except:
+            raise Exception("Please check aircraft id")
+
+    def show_search_aircraft_info_window(self):
+        if self.show_info_window != None:
+            self.show_info_window.destroy()
+
+        self.show_info_window = Toplevel(self.root)
+        self.show_info_window.geometry("1000x150")
+        self.show_info_window.title("Search Aircraft Information")
+        self.show_info_window.resizable(0, 0)
+
+        sheet = tksheet.Sheet(self.show_info_window, width=1000, height=100)
+        sheet.headers(["Id", "Fuel", "Burning Rate", "Passengers", "Runway Time", "Runway Number",  "Emergency", "Crashed"])
+        sheet.pack(side=BOTTOM)
+
+        frame = Frame(self.show_info_window)
+        frame.pack(side=TOP, anchor=NW)
+        
+        Label(frame ,text = "Aircraft Id    ").grid(row = 0,column = 0)
+        id = Entry(frame)
+        id.grid(row=0, column=1)
+        Label(frame ,text = "       ").grid(row = 0,column = 2)
+        Button(frame ,text="Search Aircraft", command= lambda : self.show_search_table(sheet, id)).grid(row=0, column=3)
+
+    def show_new_aircraft_info_window(self):
+        if self.show_info_window != None:
+            self.show_info_window.destroy()
+
+        self.show_info_window = Toplevel(self.root)
+        self.show_info_window.geometry("1000x250")
+        self.show_info_window.title("Aircrafts Information")
+        self.show_info_window.resizable(0, 0)
+
+        sheet = tksheet.Sheet(self.show_info_window, width=1000, height=250)
+        sheet.headers(["Id", "Fuel", "Burning Rate", "Passengers", "Runway Time", "Runway Number",  "Emergency", "Crashed"])
+        sheet.grid()
+        lst = self.code.aircrafts_data_list
+        sheet.set_sheet_data(lst)
+        
+    def show_database_aircraft_info_window(self):
+        if self.show_info_window != None:
+            self.show_info_window.destroy()
+
+        self.show_info_window = Toplevel(self.root)
+        self.show_info_window.geometry("510x250")
+        self.show_info_window.title("Aircrafts Information From Database")
+        self.show_info_window.resizable(0, 0)
+
+        sheet = tksheet.Sheet(self.show_info_window, width=1000, height=250)
+        sheet.headers(["Id", "Passengers", "Runway Number",  "Landing Date/Time"])
+        sheet.grid()
+        lst = self.code.database.get_data(self.code.airport_name)
+        sheet.set_sheet_data(lst)
+        
+
     def draw_extra_functions(self, window):
         a = Label(window ,text = "           Count").grid(row = 0,column = 0)
         b = Label(window ,text = "            Aircraft Id").grid(row = 0,column = 2)
@@ -86,7 +162,10 @@ class Ui:
         Button(window ,text="Add Random Aircrafts", command= self.get_random_cnt).grid(row=3, column=1)
         Button(window ,text="Remove Aircraft", command= self.get_remove_id).grid(row=3, column=3)
         Button(window ,text="Land Aircraft", command= self.get_land_aircraft).grid(row=3, column=5)
-
+        Label(window ,text = "                          ").grid(row = 0,column = 6)
+        Button(window ,text="Show aircrafts information", command= self.show_new_aircraft_info_window).grid(row=0, column=7)
+        Label(window ,text = "").grid(row = 3,column = 6)
+        Button(window ,text="Show successfully landed aircrafts information", command= self.show_database_aircraft_info_window).grid(row=3, column=7)
     
     def get_add_form_data(self):
         try:
@@ -141,11 +220,11 @@ class Ui:
         self.extra_total_on_runway.grid(row = 1,column = 10)
         self.extra_total_available_runways = Label(window ,text = "                      Available runways: 0", font=("Arial", 12))
         self.extra_total_available_runways.grid(row = 2,column = 10)
-        self.extra_crashed = Label(window ,text = "                                     Crashed: 2", font=("Arial", 12))
+        self.extra_crashed = Label(window ,text = "                                     Crashed: 0", font=("Arial", 12))
         self.extra_crashed.grid(row = 3,column = 10)
-        self.extra_successfully_landed = Label(window ,text = "                     Successfully landed: 21", font=("Arial", 12))
+        self.extra_successfully_landed = Label(window ,text = "                     Successfully landed: 0", font=("Arial", 12))
         self.extra_successfully_landed.grid(row = 4,column = 10)
-        self.extra_current_emergency = Label(window ,text = "                   Emergency aircrafts: 3", font=("Arial", 12))
+        self.extra_current_emergency = Label(window ,text = "                   Emergency aircrafts: 0", font=("Arial", 12))
         self.extra_current_emergency.grid(row = 5,column = 10)
 
     def get_airport_form_data(self):
@@ -176,26 +255,11 @@ class Ui:
         self.airport_emergency.grid(row = 0,column = 5)
         Label(window ,text = "").grid(row = 2,column = 2)
         Button(window ,text="Add Details", command= self.get_airport_form_data).grid(row=3, columnspan=2, sticky='ew', column=2)
+        Label(window ,text = "                                                      ").grid(row = 4,column = 6)
+        Button(window ,text="Search Aircraft", command= self.show_search_aircraft_info_window).grid(row=4, column=7)
         Label(window ,text = "").grid(row = 4,column = 2)
         Label(window ,text = "").grid(row = 5,column = 2)
 
 
-
-    def show_list(self, tick):
-        while True:
-            self.extra_total_aircrafts.config(text= "                                       Aircrafts: "+str(len(self.code.aircrafts.keys())))
-            self.extra_total_on_runway.config(text="                      Aircrafts on runway: "+str(len(self.code.on_runway_aircrafts())))
-            self.extra_total_available_runways.config(text = "                       Available runways: "+str(len(self.code.available_runways())))
-            self.extra_crashed.config(text="                                       Crashed: "+ str(self.code.count_crashed()))
-            self.extra_successfully_landed.config(text="                     Successfully landed: "+str(self.code.successfully_land))
-            self.extra_current_emergency.config(text="                     Emergency aircrafts: "+ str(self.code.count_emergency()))
-            self.show_table()
-            time.sleep(tick)
-            
-    def show_table(self):
-        self.code.show_information()
-        lst = self.code.aircrafts_data_list
-        self.sheet.set_sheet_data([])
-        self.sheet.set_sheet_data(lst)
 
 ui = Ui()

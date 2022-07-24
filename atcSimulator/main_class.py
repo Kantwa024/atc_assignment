@@ -6,13 +6,16 @@ import random
 from beautifultable import BeautifulTable
 import threading
 from datetime import datetime
-import database
+import atcSimulator.database as database
+# import database
+import tkinter
 
 class ATC:
     def __init__(self, airport_name, runways_cnt, emergency_fuel_limit):
         if isinstance(runways_cnt, int):
             self.airport_name = airport_name
             self.runways_cnt = runways_cnt
+            self.run = True
             self.aircrafts = {}
             self.runways = {}
             self.landing_time = {}
@@ -57,6 +60,7 @@ class ATC:
             raise Exception("Please check the runway number format")
 
     def add_runways(self):
+        self.runways = {}
         for i in range(1, self.runways_cnt+1):
             self.runways[i] = False
 
@@ -97,7 +101,7 @@ class ATC:
                 fuel = round(random.uniform(200.0, 500.0),2)
                 passengers = random.randint(10, 300)
                 burning_rate = round(random.uniform(1.0, 3.0),2)
-                runway_time = random.randint(5,10)
+                runway_time = random.randint(15,25)
 
                 while id in self.aircrafts:
                     id = random.randint(1000,9999)
@@ -165,7 +169,7 @@ class ATC:
     def count_emergency(self):
         cnt = 0
         for id, info in self.aircrafts.items():
-            if info[0] <= self.emergency_fuel_limit:
+            if info[0]/info[1] <= self.emergency_fuel_limit:
                 cnt += 1
         return cnt
 
@@ -182,7 +186,7 @@ class ATC:
         lnth = 0
         new_lst = []
         for info in self.run_priority_indexing():
-            data = info+["True" if info[1] <= self.emergency_fuel_limit else "False"]+ ["True" if info[1] < 0 else "False"]
+            data = info+["True" if info[1]/info[2] <= self.emergency_fuel_limit else "False"]+ ["True" if info[1] < 0 else "False"]
             new_lst.append(data)
             table.rows.append(data)
             lnth += 1
@@ -201,7 +205,6 @@ class ATC:
 
     def del_emergency_landing(self):
         data_dict = self.aircrafts.copy()
-        print(self.aircrafts)
         for id, info in data_dict.items():
             if info[-1] > -1 and info[-2] <= 0 and info[0] > 0:
                 self.successfully_land += 1
@@ -226,13 +229,28 @@ class ATC:
     def run_tick_thread(self, tick):
         threading.Thread(target=self.run_tick, args=(tick,)).start()
 
-    def run_tick(self, tick):
+    def show_info_list(self, extra_total_aircrafts, extra_total_on_runway, extra_total_available_runways, extra_crashed, extra_successfully_landed, extra_current_emergency, sheet):
+        extra_total_aircrafts.config(text= "                                       Aircrafts: "+str(len(self.aircrafts.keys())))
+        extra_total_on_runway.config(text="                      Aircrafts on runway: "+str(len(self.on_runway_aircrafts())))
+        extra_total_available_runways.config(text = "                       Available runways: "+str(len(self.available_runways())))
+        extra_crashed.config(text="                                       Crashed: "+ str(self.count_crashed()))
+        extra_successfully_landed.config(text="                     Successfully landed: "+str(self.successfully_land))
+        extra_current_emergency.config(text="                     Emergency aircrafts: "+ str(self.count_emergency()))
+        lst = self.aircrafts_data_list
+        sheet.set_sheet_data([])
+        sheet.set_sheet_data(lst)
+
+    def run_tick(self, tick, extra_total_aircrafts, extra_total_on_runway, extra_total_available_runways, extra_crashed, extra_successfully_landed, extra_current_emergency, sheet):
         if isinstance(tick, int):
-            while True:
-                self.del_emergency_landing()
-                self.show_information()
-                self.update_runway_time(tick)
-                time.sleep(tick)
+            while self.run:
+                try:
+                    self.del_emergency_landing()
+                    self.show_information()
+                    self.update_runway_time(tick)
+                    self.show_info_list(extra_total_aircrafts, extra_total_on_runway, extra_total_available_runways, extra_crashed, extra_successfully_landed, extra_current_emergency, sheet)
+                    time.sleep(tick)
+                except:
+                    pass
         else:
             raise Exception("Please enter a vaild format of Tick")
 
@@ -264,7 +282,7 @@ class ATC:
     def is_runway_available(self, number):
         if number in self.runways:
             if isinstance(number, int):
-                return self.runways[number]
+                return self.runways[number] == False
             else:
                 raise Exception("Please check the runway number format")
         else:

@@ -1,5 +1,6 @@
 from pymongo import MongoClient
 import pymongo
+import time
 
 class Database:
     def __init__(self):
@@ -23,12 +24,16 @@ class Database:
                     "id": id, 
                     "passengers": passengers, 
                     "runway_number": runway_number, 
-                    "landing_time": landing_time
+                    "landing_time": landing_time,
+                    "time": int(time.time())
                 }
                 ])
         else:
             raise Exception("Please check input format")
     
-    def get_data(self):
-        details = self.collections.find()
-        return details
+    def get_data(self, name):
+        details = self.collections.find({"name": name})
+        lst = []
+        for i in details:
+            lst.append([i['id'], i['passengers'], i['runway_number'], i['landing_time']])
+        return lst
